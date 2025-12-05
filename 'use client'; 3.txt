@@ -1,0 +1,354 @@
+'use client';
+
+import { useState } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { useInventario } from '@/context/InventarioContext';
+import { Tela } from '@/types';
+
+export default function RegistroTela() {
+  const { agregarTela, actualizarTela, telas } = useInventario();
+  const [editingTelaId, setEditingTelaId] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+
+  const [formData, setFormData] = useState({
+    nombre: '',
+    tipo: '',
+    color: '',
+    material: '',
+    cantidad: 0,
+    precioMetro: 0,
+    imagen: '',
+    proveedor: '',
+    stockMinimo: 10,
+    observaciones: '',
+  });
+
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string>('');
+
+  const tiposTela = [
+    'Algodón', 'Lino', 'Seda', 'Lana', 'Poliéster', 'Nylon',
+    'Rayón', 'Denim', 'Jersey', 'Terciopelo', 'Chiffón', 'Otro'
+  ];
+
+  const handleInputChange = (field: string, value: string | number) => {
+    const camposEnMayusculas = ['nombre', 'color', 'material', 'proveedor', 'observaciones'];
+    setFormData(prev => ({
+      ...prev,
+      [field]: typeof value === 'string' && camposEnMayusculas.includes(field)
+        ? value.toUpperCase()
+        : value
+    }));
+  };
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setImageFile(file);
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const result = e.target?.result as string;
+        setImagePreview(result);
+        setFormData(prev => ({ ...prev, imagen: result }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.nombre || !formData.tipo || !formData.color || !formData.material) {
+      alert('Por favor, completa todos los campos obligatorios');
+      return;
+    }
+
+    if (editingTelaId) {
+      actualizarTela(editingTelaId, formData);
+      alert('Tela actualizada exitosamente');
+      setEditingTelaId(null);
+    } else {
+      agregarTela(formData);
+      alert('Tela registrada exitosamente');
+    }
+
+    setFormData({
+      nombre: '',
+      tipo: '',
+      color: '',
+      material: '',
+      cantidad: 0,
+      precioMetro: 0,
+      imagen: '',
+      proveedor: '',
+      stockMinimo: 10,
+      observaciones: '',
+    });
+    setImageFile(null);
+    setImagePreview('');
+  };
+
+  const handleSeleccionarTela = (tela: Tela) => {
+    setEditingTelaId(tela.id);
+    setFormData({
+      nombre: tela.nombre ?? '',
+      tipo: tela.tipo ?? '',
+      color: tela.color ?? '',
+      material: tela.material ?? '',
+      cantidad: tela.cantidad ?? 0,
+      precioMetro: tela.precioMetro ?? 0,
+      imagen: tela.imagen ?? '',
+      proveedor: tela.proveedor ?? '',
+      stockMinimo: tela.stockMinimo ?? 10,
+      observaciones: tela.observaciones ?? '',
+    });
+    setImagePreview(tela.imagen ?? '');
+  };
+
+  const handleCancelarEdicion = () => {
+    setEditingTelaId(null);
+    setFormData({
+      nombre: '',
+      tipo: '',
+      color: '',
+      material: '',
+      cantidad: 0,
+      precioMetro: 0,
+      imagen: '',
+      proveedor: '',
+      stockMinimo: 10,
+      observaciones: '',
+    });
+    setImageFile(null);
+    setImagePreview('');
+  };
+
+  return (
+    <div className="flex max-w-5xl mx-auto gap-6">
+      {/* Columna izquierda: listado con buscador y estilo moderno */}
+      <div className="w-1/4 border p-4 rounded-lg bg-gray-50 h-[calc(100vh-2rem)] overflow-y-auto">
+        <h2 className="text-lg font-semibold mb-4">Telas Registradas</h2>
+
+        {/* Buscador */}
+        <Input
+          placeholder="Buscar tela..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="mb-4"
+        />
+
+        {/* Listado de telas */}
+        <div className="space-y-2">
+          {telas
+            .filter(tela => tela.nombre.toLowerCase().includes(searchTerm.toLowerCase()))
+            .map(tela => (
+              <div
+                key={tela.id}
+                className={`flex items-center gap-3 p-2 rounded-lg cursor-pointer hover:bg-blue-100 transition ${
+                  editingTelaId === tela.id ? 'bg-blue-200 font-medium' : 'bg-white'
+                }`}
+                onClick={() => handleSeleccionarTela(tela)}
+              >
+                <Avatar className="h-12 w-12">
+                  <AvatarImage src={tela.imagen || ''} alt={tela.nombre} />
+                  <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white">
+                    {tela.nombre ? tela.nombre.substring(0, 2).toUpperCase() : '🧵'}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex-1">
+                  <p className="font-semibold">{tela.nombre}</p>
+                  <p className="text-xs text-muted-foreground">{tela.tipo} - {tela.color}</p>
+                </div>
+              </div>
+            ))}
+        </div>
+      </div>
+
+      {/* Columna derecha: formulario (igual al original) */}
+      <div className="w-3/4">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <span>🧵</span>
+              {editingTelaId ? 'Editar Tela Seleccionada' : 'Registrar Nueva Tela'}
+            </CardTitle>
+            <CardDescription>
+              {editingTelaId ? 'Modifica la información de la tela seleccionada' : 'Agrega una nueva tela al inventario'}
+            </CardDescription>
+          </CardHeader>
+
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Imagen */}
+              <div className="space-y-2">
+                <Label>Imagen de la Tela</Label>
+                <div className="flex items-center gap-4">
+                  <Avatar className="h-20 w-20">
+                    <AvatarImage src={imagePreview} alt="Preview" />
+                    <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white">
+                      {formData.nombre ? formData.nombre.substring(0, 2).toUpperCase() : '🧵'}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1">
+                    <Input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageChange}
+                      className="file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Sube una imagen de la tela (opcional)
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Información básica */}
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="nombre">Nombre de la Tela *</Label>
+                  <Input
+                    id="nombre"
+                    value={formData.nombre}
+                    onChange={(e) => handleInputChange('nombre', e.target.value)}
+                    placeholder="Ej: Algodón Premium"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="tipo">Tipo de Tela *</Label>
+                  <Select value={formData.tipo} onValueChange={(value) => handleInputChange('tipo', value)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecciona el tipo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {tiposTela.map((tipo) => (
+                        <SelectItem key={tipo} value={tipo}>
+                          {tipo}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="color">Color *</Label>
+                  <Input
+                    id="color"
+                    value={formData.color}
+                    onChange={(e) => handleInputChange('color', e.target.value)}
+                    placeholder="Ej: Azul marino"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="material">Material *</Label>
+                  <Input
+                    id="material"
+                    value={formData.material}
+                    onChange={(e) => handleInputChange('material', e.target.value)}
+                    placeholder="Ej: 100% Algodón"
+                  />
+                </div>
+              </div>
+
+              {/* Información de stock y precios */}
+              <div className="grid gap-4 md:grid-cols-3">
+                <div className="space-y-2">
+                  <Label htmlFor="cantidad">Cantidad Inicial (metros)</Label>
+                  <Input
+                    id="cantidad"
+                    type="number"
+                    min="0"
+                    step="0.1"
+                    value={formData.cantidad}
+                    onChange={(e) => handleInputChange('cantidad', parseFloat(e.target.value) || 0)}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="precioMetro">Precio por Metro ($)</Label>
+                  <Input
+                    id="precioMetro"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={formData.precioMetro}
+                    onChange={(e) => handleInputChange('precioMetro', parseFloat(e.target.value) || 0)}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="stockMinimo">Stock Mínimo (metros)</Label>
+                  <Input
+                    id="stockMinimo"
+                    type="number"
+                    min="0"
+                    value={formData.stockMinimo}
+                    onChange={(e) => handleInputChange('stockMinimo', parseInt(e.target.value) || 0)}
+                  />
+                </div>
+              </div>
+
+              {/* Proveedor */}
+              <div className="space-y-2">
+                <Label htmlFor="proveedor">Proveedor</Label>
+                <Input
+                  id="proveedor"
+                  value={formData.proveedor}
+                  onChange={(e) => handleInputChange('proveedor', e.target.value)}
+                  placeholder="Nombre del proveedor"
+                />
+              </div>
+
+              {/* Observaciones */}
+              <div className="space-y-2">
+                <Label htmlFor="observaciones">Observaciones</Label>
+                <Textarea
+                  id="observaciones"
+                  value={formData.observaciones}
+                  onChange={(e) => handleInputChange('observaciones', e.target.value)}
+                  placeholder="Notas adicionales sobre la tela..."
+                  rows={3}
+                />
+              </div>
+
+              {/* Botones */}
+              <div className="flex gap-4">
+                <Button type="submit" className="flex-1">
+                  {editingTelaId ? '💾 Guardar Cambios' : '✅ Registrar Tela'}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={editingTelaId ? handleCancelarEdicion : () => {
+                    setFormData({
+                      nombre: '',
+                      tipo: '',
+                      color: '',
+                      material: '',
+                      cantidad: 0,
+                      precioMetro: 0,
+                      imagen: '',
+                      proveedor: '',
+                      stockMinimo: 10,
+                      observaciones: '',
+                    });
+                    setImagePreview('');
+                  }}
+                >
+                  🔄 {editingTelaId ? 'Cancelar Edición' : 'Limpiar'}
+                </Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}

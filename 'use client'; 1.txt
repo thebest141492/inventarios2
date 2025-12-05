@@ -1,0 +1,183 @@
+'use client';
+
+import { useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { useInventario } from '@/context/InventarioContext';
+
+export default function InventarioView() {
+  const { telas, filtrarTelas } = useInventario();
+  const [filtro, setFiltro] = useState('');
+
+  const telasFiltradas = filtrarTelas(filtro);
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('es-MX', {
+      style: 'currency',
+      currency: 'MXN'
+    }).format(amount);
+  };
+
+  const formatNumber = (value: number) => {
+    return new Intl.NumberFormat('es-MX', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(value);
+  };
+
+  const getStockStatus = (cantidad: number, stockMinimo: number) => {
+    if (cantidad === 0) return { label: 'Agotado', variant: 'destructive' as const };
+    if (cantidad <= stockMinimo) return { label: 'Stock Bajo', variant: 'secondary' as const };
+    return { label: 'En Stock', variant: 'default' as const };
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Filtros y búsqueda */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-2">
+          <Input
+            placeholder="Buscar telas..."
+            value={filtro}
+            onChange={(e) => setFiltro(e.target.value)}
+            className="w-64 text-lg font-semibold"
+          />
+
+          {/* Botón para limpiar */}
+          <button
+            onClick={() => setFiltro("")}
+            className="px-3 py-2 text-sm font-medium text-white bg-red-600 rounded hover:bg-red-800 transition"
+          >
+            Limpiar
+          </button>
+
+          <span className="text-sm text-muted-foreground">
+            {telasFiltradas.length} de {telas.length} telas
+          </span>
+        </div>
+      </div>
+
+      {/* Grid de telas */}
+      {telasFiltradas.length === 0 ? (
+        <div className="text-center py-12">
+          <div className="text-6xl mb-4">🧵</div>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">
+            {telas.length === 0 ? 'No hay telas registradas' : 'No se encontraron telas'}
+          </h3>
+          <p className="text-gray-800">
+            {telas.length === 0
+              ? 'Comienza agregando tu primera tela al inventario'
+              : 'Intenta con un término de búsqueda diferente'}
+          </p>
+        </div>
+      ) : (
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {telasFiltradas.map((tela) => {
+            const stockStatus = getStockStatus(tela.cantidad, tela.stockMinimo);
+            const valorTotal = tela.cantidad * tela.precioMetro;
+
+            return (
+              <Card
+                key={tela.id}
+                className="relative overflow-hidden rounded-2xl shadow-md hover:shadow-xl transition-transform hover:scale-[1.03] bg-white border"
+              >
+                {/* Imagen superior que se ajusta automáticamente */}
+                <div className="relative w-full aspect-[4/3] overflow-hidden rounded-t-2xl bg-gray-100 flex items-center justify-center">
+                  <img
+                    src={tela.imagen}
+                    alt={tela.nombre}
+                    className="max-h-full max-w-full object-contain transition-transform duration-500 hover:scale-105"
+                  />
+                  <Badge
+                    variant={stockStatus.variant}
+                    className={`absolute top-2 right-2 px-2 py-1 text-xs rounded-md shadow-sm 
+                      ${stockStatus.label === 'Stock Bajo' ? 'bg-red-700 text-white' : ''}`}
+                  >
+                    {stockStatus.label}
+                  </Badge>
+                </div>
+
+                {/* Contenido */}
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-lg font-semibold truncate">
+                    {tela.nombre}
+                  </CardTitle>
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <span>{tela.tipo}</span>
+                    <span>•</span>
+                    <span>{tela.color}</span>
+                  </div>
+                </CardHeader>
+
+                <CardContent className="space-y-3">
+                  {/* Material y proveedor */}
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Material:</span>
+                    <span className="font-medium">{tela.material}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Proveedor:</span>
+                    <span className="font-medium">{tela.proveedor}</span>
+                  </div>
+
+                  {/* Stock y precios */}
+                  <div className="bg-gray-50 rounded-lg p-3 space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm font-medium">Stock actual:</span>
+                      <span
+                        className={`text-lg font-bold ${
+                          tela.cantidad <= tela.stockMinimo ? 'text-red-600' : 'text-green-600'
+                        }`}
+                      >
+                        {formatNumber(tela.cantidad)} m
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Precio/metro:</span>
+                      <span className="font-medium">{formatCurrency(tela.precioMetro)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Valor total:</span>
+                      <span className="font-bold">{formatCurrency(valorTotal)}</span>
+                    </div>
+                  </div>
+
+                  {/* Datos extra */}
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>Stock mínimo:</span>
+                    <span>{tela.stockMinimo} m</span>
+                  </div>
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>Fecha ingreso:</span>
+                    <span>{new Date(tela.fechaIngreso).toLocaleDateString()}</span>
+                  </div>
+
+                  {/* Observaciones */}
+                  {tela.observaciones && (
+                    <div className="border-t pt-2">
+                      <p className="text-xs text-muted-foreground italic">
+                        {tela.observaciones}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Acciones */}
+                  <div className="flex gap-2 pt-2">
+                    <Button size="sm" variant="outline" className="flex-1">
+                      📝 Editar
+                    </Button>
+                    <Button size="sm" variant="outline" className="flex-1">
+                      📋 Detalles
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
